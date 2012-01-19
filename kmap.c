@@ -55,17 +55,20 @@ split_and_build(char* seq, int length ) {
 
   int i;
 
-  char kmer[kmer_length + 1];
-  kmer[kmer_length] = 0;
 
   printf("%s\n", seq);
 
   for(i=0;i <= length - kmer_length; i++) {
+    char *kmer = malloc(sizeof(char)*(kmer_length + 1));
     strncpy(kmer, &seq[i], kmer_length);
+    kmer[kmer_length] = 0;
+
     
-    printf("[%s]\n", kmer);
-    if (! ATGC_only(kmer, kmer_length))
-	continue;
+    //    printf("[%s]\n", kmer);
+    if (! ATGC_only(kmer, kmer_length)) {
+      free(kmer);
+      continue;
+    }
 
 
     add2tree(root, kmer, kmer_length);
@@ -101,12 +104,18 @@ int ATGC_only( char* bases, int length ) {
   return 1;
 }
 
+void print_node(struct node *node) {
+  
+  printf("node seq: %s\t[%p,%p,%p,%p]\t%d\n", node->bases, node->np[0], node->np[1], node->np[2], node->np[3], node->count);
 
+}
 
 
 int add2tree(struct node *node, char *string, int length ) {
 
-  printf("|%s|\n", string);
+  print_node(node);
+
+  printf("adding : |%s|\n", string);
 
   // Only for the initial unassigned root node.
   if (node->bases == 0 && 
@@ -118,40 +127,108 @@ int add2tree(struct node *node, char *string, int length ) {
     int basepos = base2pos(string[0]);
     node->np[ basepos ] =  malloc(sizeof(struct node));
     struct node * next_node = node->np[ basepos ];
-    next_node->bases = malloc(sizeof(char)*length+1);
-    strcpy(next_node->bases,string);
+    next_node->bases = string;
     next_node->count++;
     return 1;
   }
 
   int basepos = base2pos(string[0]);
-  if ( ! node->np[ basepos ] ) {
+  // at the root, and the next level down node does not exist, create it and return.
+  if (node->bases == 0 &&  ! node->np[ basepos ] ) {
     node->np[ basepos ] = malloc(sizeof(struct node));
     struct node * next_node = node->np[ basepos ];
     next_node->bases = malloc(sizeof(char)*length+1);
-    strcpy(next_node->bases,string);
+    next_node->bases = string;
     next_node->count++;
     return 1;
   }
+  
+  if (node->bases == 0) {
+    printf("Stepping down one level\n");
+    add2tree(node->np[ basepos ], string, length);
+  }
+  else {
+    int shared_length = common_string(node->bases, string, length);
+    printf("SHARED :: %d bases\n", shared_length);
 
-  int shared = common_string(node->bases, string);
-  printf("%s\n%s\n shares %d bases from the 5' end\n", node->bases, string, shared);
+    int post_length = length - shared_length;    
 
-  add2tree(node->np[ basepos ], string, length);
+    // no nodes further down, split the strings into the shared bit, and create two sub-nodes with the rest...
+    if (node->np[0] == 0 &&
+	node->np[1] == 0 &&
+	node->np[2] == 0 &&
+	node->np[3] == 0 ) {
 
+      char *shared_bases = malloc(sizeof(char)*shared_length+1);
+      strncpy(shared_bases, string, shared_length);
+      shared_bases[shared_length]= '\0';
+
+      char *post_bases1 = malloc(sizeof(char)*post_length);
+      strcpy(post_bases1, &string[shared_length]);
+      char *post_bases2 = malloc(sizeof(char)*post_length);
+      post_bases2 = strcpy(post_bases2, &node->bases[shared_length]);
+      
+      node->count++;
+      
+      free(string);
+      free(node->bases);
+
+      node->bases = shared_bases;
+      
+      int basepos1 = base2pos(post_bases1[0]);
+      int basepos2 = base2pos(post_bases2[0]);
+      
+      node->np[ basepos1 ] = malloc(sizeof(struct node));
+      struct node * next_node = node->np[ basepos1 ];
+      next_node->bases = post_bases1;
+      next_node->count++;
+      
+      node->np[ basepos2 ] = malloc(sizeof(struct node));
+      next_node = node->np[ basepos2 ];
+      next_node->bases = post_bases2;
+      next_node->count++;
+      //      printf("'%s'\n'%s'\n shares %d bases [%s] [%s] - [%s] from the 5' end\n", node->bases, string, shared_length, shared_bases, post_bases1, post_bases2);
+      printf("shares %d bases [%s] [%s] - [%s] from the 5' end\n", shared_length, shared_bases, post_bases1, post_bases2);
+      print_node(node);
+
+      return;
+    }
+    else { 
+      
+      printf("node sequence %s\n", node->bases);
+
+      char *post_bases = malloc(sizeof(char)*post_length);
+      strcpy(post_bases, &string[shared_length]);
+      free(string);
+      int post_base_pos = base2pos(post_bases[0]);
+      printf("trimmed string %s to %s, index %d\n", string, post_bases, post_base_pos);
+      node->np[ post_base_pos ] = malloc(sizeof(struct node));
+      add2tree(node->np[ post_base_pos ], post_bases, post_length);
+      print_node(node);
+    }
+
+  }
   return;
 }
 
+
+
+
 int common_string(char *s1, char *s2, int length) {
+
+  //  printf("%s\n%s\n", s1, s2);
 
   int i;
   
   for(i=0;i<length;i++) {
-    if (s1[i] != s2[i])
-      return i-1;
+    //printf("CS: %c-%c\n",s1[i],s2[i]);
+    if (!s1[i] || !s2[i] || s1[i] != s2[i])
+      return i;
   }
 
-  return length;
+
+
+  return ;
 }
 
 struct fasta * FastaIn() {
