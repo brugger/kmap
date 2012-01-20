@@ -30,7 +30,7 @@ struct node *root;
 int main(int argc, char **argv ) {
   root = create_node();//malloc(sizeof(struct node));
 
-  printf("Counting kmers...\n");
+  //printf("Counting kmers...\n");
 
 
   struct fasta *fs;
@@ -45,7 +45,7 @@ int main(int argc, char **argv ) {
   }
 
   struct node *nn = root->np[1];
-  printf("%s\n", nn->bases);
+  //printf("%s\n", nn->bases);
 
   return 0;
 }
@@ -72,16 +72,16 @@ split_and_build(char* seq, int length ) {
       continue;
     }
 
-    printf("adding : |%s|\n", kmer);
+    //printf("adding : |%s|\n", kmer);
 
     add2tree(root, kmer, kmer_length);
 
     //    printf("------------------------------------------\n");
-    printtree(root, 0, buffer);
+    //printtree(root, 0, buffer);
     //printf("------------------------------------------\n");
   }
 
-  printf("------------------------------------------\n");
+  //printf("------------------------------------------\n");
   printtree(root, 0, buffer);
 }
 
@@ -192,6 +192,7 @@ int add2tree(struct node *node, char *string, int length ) {
   }
   else {
     int shared_length = common_string(node->bases, string, length);
+    //printf("node sequence %s\n", node->bases);
     //printf("SHARED :: %d bases\n", shared_length);
 
     int post_length = length - shared_length;    
@@ -235,7 +236,7 @@ int add2tree(struct node *node, char *string, int length ) {
       next_node = node->np[ basepos2 ];
       next_node->bases = post_bases2;
       next_node->count++;
-      printf("shares %d bases [%s] [%s] - [%s] from the 5' end\n", shared_length, shared_bases, post_bases1, post_bases2);
+      //printf("shares %d bases [%s] [%s] - [%s] from the 5' end\n", shared_length, shared_bases, post_bases1, post_bases2);
       print_node(node);
       print_node(node->np[basepos1]);
       print_node(node->np[basepos2]);
@@ -244,14 +245,14 @@ int add2tree(struct node *node, char *string, int length ) {
     }
     else { 
       
-      //printf("node sequence %s\n", node->bases);
 
       char *post_bases = malloc(sizeof(char)*post_length);
       strcpy(post_bases, &string[shared_length]);
       free(string);
       int post_base_pos = base2pos(post_bases[0]);
       //printf("trimmed string %s to %s, index %d\n", string, post_bases, post_base_pos);
-      node->np[ post_base_pos ] = create_node();
+      if (node->np[ post_base_pos ] == 0 ) 
+	node->np[ post_base_pos ] = create_node();
       add2tree(node->np[ post_base_pos ], post_bases, post_length);
       print_node(node);
     }

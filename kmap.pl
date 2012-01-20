@@ -15,11 +15,13 @@ my $fasta_hash = readfasta( $fasta_file );
 
 my $seq = $$fasta_hash{'gid:3052'};
 
+#print "$seq\n";
+
 my $kmer_size = 36;
 
 my %k_count;
 
-for(my $i=0;$i < length($seq)-$kmer_size;$i++) {
+for(my $i=0;$i < length($seq)-$kmer_size+1;$i++) {
 
   $k_count{ substr($seq, $i, $kmer_size)}++; 
   
