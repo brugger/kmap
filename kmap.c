@@ -22,10 +22,10 @@ struct fasta {
 
 struct fasta * FastaIn();
 
-
 int kmer_length = 36;
 struct node *root;
 
+void printtree(struct node *node, int length, char *buffer);
 
 int main(int argc, char **argv ) {
   root = create_node();//malloc(sizeof(struct node));
@@ -35,13 +35,13 @@ int main(int argc, char **argv ) {
 
   struct fasta *fs;
 
-  while (fs = FastaIn() ) {
+  while (fs = FastaIn(argv[1]) ) {
     if (! fs ) 
       break;
 
-    //printf("%s with %d bases\n", fs->name, fs->length);
+    printf("%s with %d bases\n", fs->name, fs->length);
     split_and_build(fs->seq, fs->length);
-    break;
+    //break;
   }
 
   struct node *nn = root->np[1];
@@ -72,11 +72,11 @@ split_and_build(char* seq, int length ) {
       continue;
     }
 
-    //printf("adding : |%s|\n", kmer);
+    printf("adding : |%s|\n", kmer);
 
     add2tree(root, kmer, kmer_length);
 
-    //    printf("------------------------------------------\n");
+    //printf("------------------------------------------\n");
     //printtree(root, 0, buffer);
     //printf("------------------------------------------\n");
   }
@@ -116,18 +116,11 @@ int ATGC_only( char* bases, int length ) {
 
 void print_node(struct node *node) {
   
-  //printf("node seq: %s\t[%p,%p,%p,%p]\t%d\n", node->bases, node->np[0], node->np[1], node->np[2], node->np[3], node->count);
+  printf("node seq: %s\t[%p,%p,%p,%p]\t%d\n", node->bases, node->np[0], node->np[1], node->np[2], node->np[3], node->count);
 
 }
 
 void printtree(struct node *node, int length, char *buffer) {
-
-
-
-  //print_node(node);
-  //printf("buffer: '%s'\tlength:%d\n", buffer, length);
-
-
 
   int new_length = length;
   if (node->bases) {
@@ -192,16 +185,23 @@ int add2tree(struct node *node, char *string, int length ) {
   }
   else {
     int shared_length = common_string(node->bases, string, length);
-    //printf("node sequence %s\n", node->bases);
-    //printf("SHARED :: %d bases\n", shared_length);
+    printf("node sequence %s\n", node->bases);
+    printf("SHARED :: %d bases\n", shared_length);
 
-    int post_length = length - shared_length;    
-    
-    if (post_length == 0) {
+    // the fragments are identical from here on.
+    if (shared_length == length) {
       node->count++;
       return;
     }
 
+
+    int post_length = length - shared_length;    
+
+    char *post_string = malloc(sizeof(char)*post_length+1);
+    strcpy(post_string, &string[shared_length]);
+    printf("trimmed string %s to %s\n", string, post_string);
+    free(string);
+    
     // no nodes further down, split the strings into the shared bit, and create two sub-nodes with the rest...
     if (node->np[0] == 0 &&
 	node->np[1] == 0 &&
@@ -212,31 +212,29 @@ int add2tree(struct node *node, char *string, int length ) {
       strncpy(shared_bases, string, shared_length);
       shared_bases[shared_length]= '\0';
 
-      char *post_bases1 = malloc(sizeof(char)*post_length);
-      strcpy(post_bases1, &string[shared_length]);
-      char *post_bases2 = malloc(sizeof(char)*post_length);
+      char *post_bases2 = malloc(sizeof(char)*post_length+1);
       post_bases2 = strcpy(post_bases2, &node->bases[shared_length]);
       
       node->count++;
       
-      free(string);
+      free(string);      
       free(node->bases);
 
       node->bases = shared_bases;
       
-      int basepos1 = base2pos(post_bases1[0]);
+      int basepos1 = base2pos(post_string[0]);
       int basepos2 = base2pos(post_bases2[0]);
       
       node->np[ basepos1 ] = create_node();
       struct node * next_node = node->np[ basepos1 ];
-      next_node->bases = post_bases1;
+      next_node->bases = post_string;
       next_node->count++;
       
       node->np[ basepos2 ] = create_node();
       next_node = node->np[ basepos2 ];
       next_node->bases = post_bases2;
       next_node->count++;
-      //printf("shares %d bases [%s] [%s] - [%s] from the 5' end\n", shared_length, shared_bases, post_bases1, post_bases2);
+      printf("shares %d bases [%s] [%s] - [%s] from the 5' end\n", shared_length, shared_bases, post_string, post_bases2);
       print_node(node);
       print_node(node->np[basepos1]);
       print_node(node->np[basepos2]);
@@ -244,16 +242,12 @@ int add2tree(struct node *node, char *string, int length ) {
       return;
     }
     else { 
-      
 
-      char *post_bases = malloc(sizeof(char)*post_length);
-      strcpy(post_bases, &string[shared_length]);
-      free(string);
-      int post_base_pos = base2pos(post_bases[0]);
-      //printf("trimmed string %s to %s, index %d\n", string, post_bases, post_base_pos);
+      int post_base_pos = base2pos(post_string[0]);
+      printf("trimmed string %s to %s, index %d\n", string, post_string, post_base_pos);
       if (node->np[ post_base_pos ] == 0 ) 
 	node->np[ post_base_pos ] = create_node();
-      add2tree(node->np[ post_base_pos ], post_bases, post_length);
+      add2tree(node->np[ post_base_pos ], post_string, post_length);
       print_node(node);
     }
 
@@ -279,7 +273,7 @@ int common_string(char *s1, char *s2, int length) {
   return ;
 }
 
-struct fasta * FastaIn() {
+struct fasta * FastaIn(char *infile) {
 /******************************************************************************
  * Reads a sequence from stdin into a fasta structure.
  *****************************************************************************/
@@ -291,7 +285,6 @@ struct fasta * FastaIn() {
 
   fs = malloc(sizeof(struct fasta));
 
-  // First the header/name (> Name ......)
   i = 0;
 
   p = getline(&fs->name, &i, stdin);

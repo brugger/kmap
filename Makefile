@@ -4,7 +4,7 @@
 
 PROG   = kmap
 WARN   = #-Wshadow  -Wmissing-prototypes
-FLAGS  = -pipe -Wall -ggdb -I$(ILIB) -D_POSIX_SOURCE $(WARN) -O6 -pg
+FLAGS  = -pipe -Wall -g -I$(ILIB) -D_POSIX_SOURCE $(WARN) -O6 -pg
 CC     = gcc
 LIBS   = -lm #-lefence #-ldmalloc  #-lefence #-lmcheck#-lmalloc
 RM     = rm -f
